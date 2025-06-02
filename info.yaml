@@ -1,7 +1,7 @@
 # Tiny Tapeout project information
 project:
-  title:        ""      # ALU
-  author:       ""      # Axot611
+  title:        ""      ALU
+  author:       ""      Axot611
   discord:      ""      # Your discord username, for communication and automatically assigning you a Tapeout role (optional)
   description:  ""      # One line description of what your project does
   language:     "Verilog" # other examples include SystemVerilog, Amaranth, VHDL, etc
