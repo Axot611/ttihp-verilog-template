@@ -2,7 +2,7 @@
 module top (
     input  wire [7:0] io_in,
     output wire [7:0] io_out,
-    output wire [7:0] io_oeb
+    output wire [7:0] io_oeb 
 );
     wire [3:0] A = io_in[7:4];
     wire [3:0] B = io_in[3:0];
