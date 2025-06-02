@@ -1,3 +1,33 @@
+// Top module 
+module tt_um_ALU_Axot611 (
+    input  wire [7:0] ui,    // Entradas: A[7:4], B[3:0], SEL[2:0] (SEL y B comparten bits)
+    output wire [7:0] uo,    // Resultado ALU
+    output wire [7:0] uio    // Output enable (0 = salida activa)
+);
+    wire [3:0] A = ui[7:4];
+    wire [3:0] B = ui[3:0];
+    wire [2:0] SEL = ui[2:0];
+
+    wire [7:0] A_ext = {4'b0000, A};
+    wire [7:0] B_ext = {4'b0000, B};
+
+    wire [7:0] RESULT;
+    wire ZERO, NEGATIVE, CARRY;
+
+    alu_8bit alu (
+        .A(A_ext),
+        .B(B_ext),
+        .SEL(SEL),
+        .RESULT(RESULT),
+        .ZERO(ZERO),
+        .NEGATIVE(NEGATIVE),
+        .CARRY(CARRY)
+    );
+
+    assign uo = RESULT;
+    assign uio = 8'b00000000;  // Salida habilitada siempre
+endmodule
+
 // ALU completa
 module alu_8bit (
     input wire [7:0] A,
