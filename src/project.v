@@ -1,20 +1,21 @@
-// Top module para Tiny Tapeout
 module tt_um_ALU_Axot611 (
-    input  wire        clk,      // no usado, pero requerido
-    input  wire        rst_n,    // no usado, pero requerido
-    input  wire        ena,      // no usado, pero requerido
-    input  wire [7:0]  ui_in,    // Entradas: A[7:4], B[3:0], SEL[2:0] (SEL y B comparten bits)
-    input  wire [7:0]  uio_in,   // no usado
-    output wire [7:0]  uo_out,   // Resultado ALU
-    output wire [7:0]  uio_out,  // no usado
-    output wire [7:0]  uio_oe    // habilita salida en uio_out (0 = entrada, 1 = salida)
+    
+    input  wire        clk,       // no usado, pero requerido
+    input  wire        rst_n,     // no usado, pero requerido
+    input  wire        ena,       // no usado, pero requerido
+    input  wire [7:0]  ui_in,     // [7:6]=A, [5:4]=B, [3:1]=SEL, [0]=no usado
+    input  wire [7:0]  uio_in,    // no usado
+    output wire [7:0]  uo_out,    // resultado ALU
+    output wire [7:0]  uio_out,   // no usado
+    output wire [7:0]  uio_oe     // habilita salida en uio_out (0 = entrada, 1 = salida)
 );
-    wire [3:0] A = ui_in[7:4];
-    wire [3:0] B = ui_in[3:0];
-    wire [2:0] SEL = ui_in[2:0];
+    // Separación clara de pines
+    wire [1:0] A   = ui_in[7:6];
+    wire [1:0] B   = ui_in[5:4];
+    wire [2:0] SEL = ui_in[3:1];
 
-    wire [7:0] A_ext = {4'b0000, A};
-    wire [7:0] B_ext = {4'b0000, B};
+    wire [7:0] A_ext = {6'b000000, A};
+    wire [7:0] B_ext = {6'b000000, B};
 
     wire [7:0] RESULT;
     wire ZERO, NEGATIVE, CARRY;
@@ -30,8 +31,8 @@ module tt_um_ALU_Axot611 (
     );
 
     assign uo_out  = RESULT;
-    assign uio_out = 8'b00000000; // No se usa, así que en 0
-    assign uio_oe  = 8'b00000000; // Desactiva todos los pines de uio como salida
+    assign uio_out = 8'b00000000;  // no usado
+    assign uio_oe  = 8'b00000000;  // todos los uio son entrada
 endmodule
 
 // ALU completa
@@ -157,7 +158,7 @@ module FlagsUnit (
     output wire NEGATIVE,
     output wire CARRY
 );
-    assign ZERO = (RESULT == 8'b00000000) ? 1'b1 : 1'b0;
+    assign ZERO = (RESULT == 8'b00000000);
     assign NEGATIVE = RESULT[7];
     assign CARRY = COUT;
 endmodule
