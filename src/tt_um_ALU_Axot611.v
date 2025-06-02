@@ -1,196 +1,64 @@
-module tt_um_ALU_Axot611 (
-    input  wire        clk,       // no usado, pero requerido
-    input  wire        rst_n,     // no usado, pero requerido
-    input  wire        ena,       // no usado, pero requerido
-    input  wire [7:0]  ui_in,     // [7:6]=A, [5:4]=B, [3:1]=SEL, [0]=no usado
-    input  wire [7:0]  uio_in,    // no usado
-    output wire [7:0]  uo_out,    // resultado ALU
-    output wire [7:0]  uio_out,   // no usado
-    output wire [7:0]  uio_oe     // habilita salida en uio_out (0 = entrada, 1 = salida)
+module tt_um_fsm_tinytapeout (
+    input  wire [7:0] ui_in,
+    output wire [7:0] uo_out
 );
-    // Separación clara de pines
-    wire [1:0] A   = ui_in[7:6];
-    wire [1:0] B   = ui_in[5:4];
-    wire [2:0] SEL = ui_in[3:1];
 
-    wire [7:0] A_ext = {6'b000000, A};
-    wire [7:0] B_ext = {6'b000000, B};
+    // Asignación de señales de entrada
+    wire clk    = ui_in[6];
+    wire rst_n  = ui_in[4];
+    wire ena    = ui_in[5];
+    wire S      = ui_in[0];
+    wire L1     = ui_in[1];
+    wire L2     = ui_in[2];
+    wire L3     = ui_in[3];
 
-    wire [7:0] RESULT;
-    wire ZERO, NEGATIVE, CARRY;
+    // Señales internas
+    reg [1:0] state;
+    wire [1:0] next_state;
+    wire GROUND, L1_out, L2_out, L3_out;
+    wire VERDE, ROJO;
 
-    alu_8bit alu (
-        .A(A_ext),
-        .B(B_ext),
-        .SEL(SEL),
-        .RESULT(RESULT),
-        .ZERO(ZERO),
-        .NEGATIVE(NEGATIVE),
-        .CARRY(CARRY)
-    );
+    // Lógica de transición de estados
+    assign next_state[1] = (state[1] & ~S & ~L1 & ~L2 & L3) |
+                           (state[1] & ~S & ~L1 & L2 & ~L3) |
+                           (state[0] & ~S & ~L1) |
+                           (state[0] & L3) |
+                           (state[0] & L2) |
+                           (state[0] & S & L1) |
+                           (state[0] & state[1]);
 
-    assign uo_out  = RESULT;
-    assign uio_out = 8'b00000000;  // no usado
-    assign uio_oe  = 8'b00000000;  // todos los uio son entrada
-endmodule
+    assign next_state[0] = (~state[1] & ~S & ~L1 & ~L2 & L3) |
+                           (~state[0] & ~state[1] & ~S & ~L1 & L2 & ~L3) |
+                           (state[1] & L2 & L3) |
+                           (state[1] & S & L3) |
+                           (state[1] & S & L2) |
+                           (~state[1] & ~S & L1 & ~L2 & ~L3) |
+                           (state[0] & ~state[1] & S & ~L1 & ~L2 & ~L3) |
+                           (state[1] & L1 & L2) |
+                           (state[1] & S & L1) |
+                           (state[1] & ~S & ~L1 & ~L2 & ~L3) |
+                           (~state[0] & state[1] & L1) |
+                           (state[0] & state[1] & L3);
 
-// ALU completa
-module alu_8bit (
-    input wire [7:0] A,
-    input wire [7:0] B,
-    input wire [2:0] SEL,
-    output wire [7:0] RESULT,
-    output wire ZERO,
-    output wire NEGATIVE,
-    output wire CARRY
-);
-    wire [7:0] SUMA_RESTA;
-    wire [7:0] AND_OUT;
-    wire [7:0] OR_OUT;
-    wire [7:0] SL_OUT;
-    wire [7:0] SR_OUT;
-    wire COUT;
-
-    alu_suma_resta_8bit sr_unit (.A(A), .B(B), .SEL(SEL[2]), .RESULT(SUMA_RESTA), .COUT(COUT));
-    and_8bit and_unit (.A(A), .B(B), .Y(AND_OUT));
-    or_8bit or_unit (.A(A), .B(B), .Y(OR_OUT));
-    shift_left_8bit sl_unit (.A(A), .Y(SL_OUT));
-    shift_right_8bit sr_unit2 (.A(A), .Y(SR_OUT));
-
-    alu_mux mux_unit (
-        .SEL(SEL),
-        .SUMA_RESTA(SUMA_RESTA),
-        .AND_OUT(AND_OUT),
-        .OR_OUT(OR_OUT),
-        .SL_OUT(SL_OUT),
-        .SR_OUT(SR_OUT),
-        .RESULT(RESULT)
-    );
-
-    FlagsUnit flags_unit (.RESULT(RESULT), .COUT(COUT), .ZERO(ZERO), .NEGATIVE(NEGATIVE), .CARRY(CARRY));
-endmodule
-
-// Suma/Resta 8 bits
-module alu_suma_resta_8bit (
-    input wire [7:0] A,
-    input wire [7:0] B,
-    input wire SEL,
-    output wire [7:0] RESULT,
-    output wire COUT
-);
-    wire [7:0] B_xor;
-    wire CIN;
-
-    assign B_xor = B ^ {8{SEL}};
-    assign CIN = SEL;
-
-    PrefixAdder8bit adder (
-        .A(A),
-        .B(B_xor),
-        .CIN(CIN),
-        .SUM(RESULT),
-        .COUT(COUT)
-    );
-endmodule
-
-// AND 8 bits
-module and_8bit (
-    input wire [7:0] A,
-    input wire [7:0] B,
-    output wire [7:0] Y
-);
-    assign Y = A & B;
-endmodule
-
-// OR 8 bits
-module or_8bit (
-    input wire [7:0] A,
-    input wire [7:0] B,
-    output wire [7:0] Y
-);
-    assign Y = A | B;
-endmodule
-
-// Shift Left 8 bits
-module shift_left_8bit (
-    input wire [7:0] A,
-    output wire [7:0] Y
-);
-    assign Y = A << 1;
-endmodule
-
-// Shift Right 8 bits
-module shift_right_8bit (
-    input wire [7:0] A,
-    output wire [7:0] Y
-);
-    assign Y = A >> 1;
-endmodule
-
-// Mux de salida ALU
-module alu_mux (
-    input wire [2:0] SEL,
-    input wire [7:0] SUMA_RESTA,
-    input wire [7:0] AND_OUT,
-    input wire [7:0] OR_OUT,
-    input wire [7:0] SL_OUT,
-    input wire [7:0] SR_OUT,
-    output reg [7:0] RESULT
-);
-    always @(*) begin
-        case (SEL)
-            3'b000: RESULT = SUMA_RESTA;
-            3'b001: RESULT = AND_OUT;
-            3'b010: RESULT = OR_OUT;
-            3'b011: RESULT = SL_OUT;
-            3'b100: RESULT = SR_OUT;
-            default: RESULT = 8'b00000000;
-        endcase
+    // Flip-flops de estado
+    always @(posedge clk or negedge rst_n) begin
+        if (!rst_n)
+            state <= 2'b00;
+        else if (ena)
+            state <= next_state;
     end
-endmodule
 
-// Unidad de Banderas
-module FlagsUnit (
-    input wire [7:0] RESULT,
-    input wire COUT,
-    output wire ZERO,
-    output wire NEGATIVE,
-    output wire CARRY
-);
-    assign ZERO = (RESULT == 8'b00000000);
-    assign NEGATIVE = RESULT[7];
-    assign CARRY = COUT;
-endmodule
+    // Lógica de salida
+    assign GROUND = ~state[1] & ~state[0];
+    assign L1_out = ~state[1] &  state[0];
+    assign L2_out =  state[1] & ~state[0];
+    assign L3_out =  state[1] &  state[0];
 
-// Sumador Prefix 8 bits
-module PrefixAdder8bit (
-    input wire [7:0] A,
-    input wire [7:0] B,
-    input wire CIN,
-    output wire [7:0] SUM,
-    output wire COUT
-);
-    wire [7:0] G, P, C;
+    // Indicadores LED
+    assign VERDE = GROUND | L1_out | L2_out | L3_out;
+    assign ROJO  = ~VERDE;
 
-    assign G = A & B;
-    assign P = A ^ B;
+    // Asignación de salidas
+    assign uo_out = {ROJO, VERDE, L3_out, L2_out, L1_out, GROUND, state[1], state[0]};
 
-    assign C[0] = CIN;
-    assign C[1] = G[0] | (P[0] & C[0]);
-    assign C[2] = G[1] | (P[1] & C[1]);
-    assign C[3] = G[2] | (P[2] & C[2]);
-    assign C[4] = G[3] | (P[3] & C[3]);
-    assign C[5] = G[4] | (P[4] & C[4]);
-    assign C[6] = G[5] | (P[5] & C[5]);
-    assign C[7] = G[6] | (P[6] & C[6]);
-    assign COUT = G[7] | (P[7] & C[7]);
-
-    assign SUM[0] = P[0] ^ C[0];
-    assign SUM[1] = P[1] ^ C[1];
-    assign SUM[2] = P[2] ^ C[2];
-    assign SUM[3] = P[3] ^ C[3];
-    assign SUM[4] = P[4] ^ C[4];
-    assign SUM[5] = P[5] ^ C[5];
-    assign SUM[6] = P[6] ^ C[6];
-    assign SUM[7] = P[7] ^ C[7];
 endmodule
